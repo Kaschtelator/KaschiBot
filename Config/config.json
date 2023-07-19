@@ -1,0 +1,10 @@
+{
+  "token": "DEIN_DISCORD_TOKEN",
+  "YT_API_KEY": "DEIN_YOUTUBE_API_KEY",
+  "youtube_channel_id": "DEINE_YOUTUBE_KANAL_ID",
+  "youtube_discord_channel_id": "DISCORD_CHANNEL_ID",
+  "freegames_discord_channel_id": "DISCORD_CHANNEL_ID",
+  "bday_discord_channel_id": "DISCORD_CHANNEL_ID",
+  "checkChannel_id": "DISCORD_CHANNEL_ID"
+  
+}
