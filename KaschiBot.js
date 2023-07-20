@@ -51,18 +51,13 @@ youtubeModule.checkForNewVideos(client);
 //const twitterModule = require('./Funktion/tweety');
 //console.log('twitterModule erfolgreich eingelesen.');
 //twitterModule.startTwitterBot();
+
 //------------------------FREE GAMES------------------------------------------------
 
 //GOG
 
-
-const { fetchAndExtractData, sendEmbedMessage } = require('./Funktion/gog.js');
+const { fetchAndExtractData, sendEmbedMessage } = require('./Funktion/GOGModule.js');
 console.log('gogModule erfolgreich eingelesen.');
-
-
-//const gogModule = require('./Funktion/GOGModule.js');
-//console.log('gogModule erfolgreich eingelesen.');
-//gogModule.checkForNewFreeGames(client);
 
 //Epic Games
 const epicModule = require('./Funktion/EpicGamesModule.js');
