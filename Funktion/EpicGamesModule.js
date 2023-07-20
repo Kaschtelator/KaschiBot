@@ -44,7 +44,13 @@ const epicModule = {
             }
             return;
           }
-          const freeGames = promotions.elements.filter(element => element.promotions?.promotionalOffers?.length > 0);
+
+          const freeGames = promotions.elements.filter(game => {
+            const hasPromotion = game.promotions?.promotionalOffers?.length > 0;
+            const discountPercentage = game.promotions?.promotionalOffers[0]?.promotionalOffers[0]?.discountSetting?.discountPercentage || 0;
+            return hasPromotion && discountPercentage === 0;
+          });
+
           if (freeGames.length === 0) {
             if (debugbot) {
               console.log('Keine neuen kostenlosen Spiele gefunden.');
@@ -80,23 +86,20 @@ const epicModule = {
             const priceText = `:moneybag: ${formattedPrice} **➜ Kostenlos!**`;
 
             const embed = new Discord.RichEmbed()
-              .setTitle(`Kostenlos bei Epic Games:\n${gameTitle}`)
-              .setDescription(`Schnappt es euch :point_right_tone1: [Epicgames.com](${gameUrl}) :point_left_tone1:`)
-              .setColor('#ffb700')
-              .setTimestamp()
-              .setImage(gameImage)
-              .addField('Beschreibung', gameDescription)
-              .addField('Originalpreis', priceText);
+            .setTitle(`Kostenlos bei Epic Games:\n${gameTitle}`)
+            .setDescription(`Schnappt es euch :point_right_tone1: [Epicgames.com](${gameUrl}) :point_left_tone1:`)
+            .setColor('#ffb700')
+            .setTimestamp()
+            .setImage(gameImage)
+            .addField('Beschreibung', gameDescription)
+            .addField('Originalpreis', priceText);
 
-            const channel = client.channels.find(ch => ch.id === discord_channel_id);
-            channel.send('@everyone',{embed});
-            if (debugbot) {
-              console.log(`Spiel ${game.id} (${gameTitle}) wurde Veröffentlicht.`);
-            }
-          });
-
-
-
+          const channel = client.channels.find(ch => ch.id === discord_channel_id);
+          channel.send('@everyone',{embed});
+          if (debugbot) {
+            console.log(`Spiel ${game.id} (${gameTitle}) wurde Veröffentlicht.`);
+          }
+        });
 
           fs.writeFile('/home/kaschtelator/KaschiBot/Datenbank/lastEpicGames.json', JSON.stringify(lastGames), err => {
             if (err) {
