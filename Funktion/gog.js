@@ -121,7 +121,7 @@ schedule.scheduleJob('0 17 * * 5', () => {
       /*
         Füge hier die Discord Webhook URL ein | Oder Ändere die Send Funktion um ^^ 
       */
-      const webhookUrl = "Füge hier die Discord Webhook URL ein";
+      const webhookUrl = "https://discord.com/api/webhooks/1130546567728873585/ATBlL2mo8F6q7YwMPQV0wNxeI8HW04ekK7a4ouAe-g5pXNhHfmrgbbBpua_m3rZ7Y_4m";
       if (gameDataArray.length == 0) { console.warn(`${new Date().toUTCString()} - No Free Games found`); return };
       //?? Optional you can also use gameData.products[0] but maybe you want to add more infos in the future
       //? Iterate over the gameDataArray
