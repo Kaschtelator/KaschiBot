@@ -57,10 +57,10 @@ const epicModule = {
             }
             return;
           }
-
           freeGames.forEach(game => {
             const gameTitle = game.title;
-            const gameUrl = `https://www.epicgames.com/store/de/p/${game.productSlug}`;
+            const pageSlug = game.catalogNs.mappings[0].pageSlug;
+            const gameUrl = `https://www.epicgames.com/store/de/p/${pageSlug}`;
             const existingGame = lastGames.find(g => g.id === game.id);
             if (existingGame) {
               if (debugbot) {
@@ -69,6 +69,9 @@ const epicModule = {
               return;
             }
             lastGames.push({ id: game.id });
+            console.log(`Spiel ${game.id} (${gameTitle}) - URL: ${gameUrl}`);
+         
+          
 
             const gameImage = game.keyImages[0]?.url;
             const gameDescription = game.description;
