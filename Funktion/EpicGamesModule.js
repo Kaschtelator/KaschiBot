@@ -4,26 +4,47 @@ const axios = require('axios');
 const Discord = require('discord.js');
 const discord_channel_id = config.freegames_discord_channel_id;
 let lastGames = [];
-var debugbot = false;
+var moduleEnabled = true; // Starten Sie das Modul standardmäßig aktiviert
+var debugbot = true;
+
+let interval;
 
 const epicModule = {
   checkForNewFreeGames: (client) => {
-    // Dieser Timer in Millisekunden löst eine Suche aus, wenn er abgelaufen ist.
-    // 10800000 ms sind 3 Stunden
-    // 7200000 ms sind 2 Stunden
-    // 3600000 ms sind 1 Stunde
-    // 1800000 ms sind 30 Minuten.
-    // 1200000 ms sind 20 Minuten
-    // 600000  ms sind 10 Minuten
-    setInterval(checkForNewFreeGames, 600000);
-
     client.on('message', message => {
       if (message.content === '!epic') {
         checkForNewFreeGames();
       }
+
+      if (message.content === '!epicoff') {
+        // Deaktivieren Sie das Modul, wenn !epicoff eingegeben wird
+        moduleEnabled = false;
+        clearInterval(interval); // Stoppen Sie das Intervall
+        message.channel.send("Das Epic-Modul wurde deaktiviert.");
+        console.log('Das Epic-Modul wurde deaktiviert.');
+      }
+
+      if (message.content === '!epicon') {
+        // Aktivieren Sie das Modul, wenn !epicon eingegeben wird
+        moduleEnabled = true;
+        // Dieser Timer in Millisekunden löst eine Suche aus, wenn er abgelaufen ist.
+        // 10800000 ms sind 3 Stunden
+        // 7200000 ms sind 2 Stunden
+        // 3600000 ms sind 1 Stunde
+        // 1800000 ms sind 30 Minuten.
+        // 1200000 ms sind 20 Minuten
+        // 600000  ms sind 10 Minuten
+        interval = setInterval(checkForNewFreeGames, 600000); // Starten Sie das Intervall erneut
+        message.channel.send("Das Epic-Modul wurde aktiviert.");
+        console.log('Das Epic-Modul wurde aktiviert.');
+      }
     });
 
     function checkForNewFreeGames() {
+      if (!moduleEnabled) {
+        console.log('Das Epic-Modul ist deaktiviert.');
+        return;
+      }
       if (!fs.existsSync('/home/kaschtelator/KaschiBot/Datenbank/lastEpicGames.json')) {
         fs.writeFileSync('/home/kaschtelator/KaschiBot/Datenbank/lastEpicGames.json', '[]');
       }
@@ -59,7 +80,13 @@ const epicModule = {
           }
           freeGames.forEach(game => {
             const gameTitle = game.title;
-            const pageSlug = game.catalogNs.mappings[0].pageSlug;
+            const pageSlug = game.catalogNs && game.catalogNs.mappings && game.catalogNs.mappings[0] ? game.catalogNs.mappings[0].pageSlug : null;
+
+            if (pageSlug) {
+              // Sie können pageSlug hier sicher verwenden
+            } else {
+              // Behandeln Sie den Fall, in dem pageSlug null oder undefiniert ist
+            }
             const gameUrl = `https://www.epicgames.com/store/de/p/${pageSlug}`;
             const existingGame = lastGames.find(g => g.id === game.id);
             if (existingGame) {
@@ -70,8 +97,8 @@ const epicModule = {
             }
             lastGames.push({ id: game.id });
             console.log(`Spiel ${game.id} (${gameTitle}) - URL: ${gameUrl}`);
-         
-          
+
+
 
             const gameImage = game.keyImages[0]?.url;
             const gameDescription = game.description;
@@ -89,22 +116,22 @@ const epicModule = {
             const priceText = `:moneybag: ${formattedPrice} **➜ Kostenlos!**`;
 
             const embed = new Discord.RichEmbed()
-            .setTitle(`Kostenlos bei Epic Games:\n${gameTitle}`)
-            .setDescription(`Schnappt es euch :point_right_tone1: [Epicgames.com](${gameUrl}) :point_left_tone1:`)
-            .setColor('#ffb700')
-            .setTimestamp()
-            .setImage(gameImage)
-            .addField('Beschreibung', gameDescription)
-            .addField('Originalpreis', priceText);
+              .setTitle(`Kostenlos bei Epic Games:\n${gameTitle}`)
+              .setDescription(`Schnappt es euch :point_right_tone1: [Epicgames.com](${gameUrl}) :point_left_tone1:`)
+              .setColor('#ffb700')
+              .setTimestamp()
+              .setImage(gameImage)
+              .addField('Beschreibung', gameDescription)
+              .addField('Originalpreis', priceText);
 
-          const channel = client.channels.find(ch => ch.id === discord_channel_id);
-          channel.send('@everyone',{embed});
-          if (debugbot) {
-            console.log(`Spiel ${game.id} (${gameTitle}) wurde Veröffentlicht.`);
-          }
-        });
+            const channel = client.channels.find(ch => ch.id === discord_channel_id);
+            channel.send('@everyone', { embed });
+            if (debugbot) {
+              console.log(`Spiel ${game.id} (${gameTitle}) wurde Veröffentlicht.`);
+            }
+          });
 
-          fs.writeFile('/home/kaschtelator/KaschiBot/Datenbank/lastEpicGames.json', JSON.stringify(lastGames), err => {
+          fs.writeFileSync('/home/kaschtelator/KaschiBot/Datenbank/lastEpicGames.json', JSON.stringify(lastGames), err => {
             if (err) {
               console.error(err);
             }
