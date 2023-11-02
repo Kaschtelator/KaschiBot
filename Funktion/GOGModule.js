@@ -110,7 +110,7 @@ console.log("Motion Control: START")
 /// */30 * * * * *
 //? Main Programm
 //? Run this function every hour
-schedule.scheduleJob('0 17 * * 5', () => {
+schedule.scheduleJob('5 * * * *', () => {
   const url = 'https://www.gog.com/de/games?priceRange=0,0&discounted=true';//  <-- Kostenlose Games
   //const url = "https://www.gog.com/de/games?priceRange=0.39,0.39&discounted=true"; // <-- 0.39€ Games TESTING ONLY
 
@@ -121,7 +121,7 @@ schedule.scheduleJob('0 17 * * 5', () => {
       /*
         Füge hier die Discord Webhook URL ein | Oder Ändere die Send Funktion um ^^ 
       */
-      const webhookUrl = "DEIN_DISCORD_WEBHOOK_HIER_REIN";
+      const webhookUrl = "https://discord.com/api/webhooks/1130546567728873585/ATBlL2mo8F6q7YwMPQV0wNxeI8HW04ekK7a4ouAe-g5pXNhHfmrgbbBpua_m3rZ7Y_4m";
       if (gameDataArray.length == 0) { console.warn(`${new Date().toUTCString()} - No Free Games found`); return };
       //?? Optional you can also use gameData.products[0] but maybe you want to add more infos in the future
       //? Iterate over the gameDataArray
