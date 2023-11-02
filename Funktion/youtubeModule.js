@@ -62,15 +62,15 @@ const youtubeModule = {
                     if (isToday) {
                         const existingVideo = lastVideos.find(v => v.id === video.id.videoId);
                         if (existingVideo && existingVideo.timestamp >= videoTimestamp.getTime()) {
-                            if (debugbot) {
-                                console.log(`Video ${video.id.videoId} wurde bereits gepostet`);
-                            }
+                            //if (debugbot) {
+                               // console.log(`Video ${video.id.videoId} wurde bereits gepostet`);
+                           // }
                         } else {
                             lastVideos.push({ id: video.id.videoId, timestamp: videoTimestamp.getTime() });
                             const title = video.snippet.title;
                             const url = `https://youtube.com/watch?v=${video.id.videoId}`;
                             const author = video.snippet.channelTitle;
-                            const message = `Hey Leute, **${author}** hat **"${title}"** hochgeladen: ${url}`;
+                            const message = `Hey Leute, **${author}** hat **"${title.replace(/&amp;/g, '&')}"** hochgeladen: ${url}`;
                             const channel = client.channels.find(ch => ch.id === youtube_discord_channel_id);
                             channel.send(message);
                             if (debugbot) {
