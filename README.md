@@ -96,29 +96,6 @@ CHECKCHANNEL_ID = 123456789012345678
    - Permissions: `Administrator` (oder spezifische Rechte)
 6. Bot zum Server hinzufügen
 
-## 📁 Datei-Struktur
-
-kaschibot/
-├── kaschibot.py # Hauptbot mit Hot-Reload
-├── config.py # Konfiguration (Template)
-├── requirements.txt # Python Dependencies
-├── modules/ # Bot Module
-│ ├── moderation.py # Chat-Moderation
-│ ├── greetings.py # Willkommen/Abschied
-│ ├── birthday.py # Geburtstags-System
-│ ├── youtube.py # YouTube Notifications
-│ ├── epicgames.py # Epic Games Tracker
-│ └── steamgames.py # Steam Free Games
-└── datenbank/ # Datenbank-Dateien
-├── bad_words.txt # Schimpfwörter-Liste
-├── threat_patterns.txt # Drohungs-Regex
-├── Willkommen.json # Begrüßungstexte
-├── Wiedersehen.json # Abschiedstexte
-├── birthdays.json # Geburtstage (auto-created)
-├── lastEpicGames.json # Epic Games Cache (auto-created)
-├── lastVideos.json # YouTube Cache (auto-created)
-└── lastSteamGames.json # Steam Cache (auto-created)
-
 
 ## 🎯 Commands
 
