@@ -72,11 +72,9 @@ python kaschibot.py
 Bearbeite `config.py` mit deinen Daten:
 Discord Bot Token
 TOKEN = "DEIN_DISCORD_BOT_TOKEN"
-
 YouTube API (optional)
 YT_API_KEY = "DEIN_YOUTUBE_API_KEY"
 YOUTUBE_CHANNEL_ID = "UCxxxxxxxxxxxxxxxxx"
-
 Discord Channel IDs
 YOUTUBE_DISCORD_CHANNEL_ID = 123456789012345678
 FREEGAMES_DISCORD_CHANNEL_ID = 123456789012345678
