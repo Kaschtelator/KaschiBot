@@ -5,15 +5,40 @@ import os
 import logging
 from discord.ext import tasks, commands
 import config
+import asyncio
 
 logger = logging.getLogger(__name__)
 LASTVID_PATH = "datenbank/lastVideos.json"
+lastvids = []
 
-def setup(bot):
+async def read_lastvids():
+    global lastvids
     if not os.path.exists(LASTVID_PATH):
         with open(LASTVID_PATH, "w") as f:
             json.dump([], f)
+        lastvids = []
         logger.info("YouTube Videos Datenbank erstellt")
+        return
+
+    try:
+        with open(LASTVID_PATH, "r") as f:
+            lastvids = json.load(f)
+        logger.info(f"YouTube Videos Datenbank geladen: {len(lastvids)} Einträge")
+    except Exception as e:
+        logger.error(f"Fehler beim Laden der YouTube Videos Datenbank: {e}")
+        lastvids = []
+
+async def save_lastvids():
+    global lastvids
+    try:
+        with open(LASTVID_PATH, "w") as f:
+            json.dump(lastvids, f)
+        logger.info("YouTube Videos Datenbank gespeichert")
+    except Exception as e:
+        logger.error(f"Fehler beim Speichern der YouTube Videos Datenbank: {e}")
+
+def setup(bot):
+    asyncio.run(read_lastvids())
 
     @tasks.loop(minutes=10)
     async def youtube_check():
@@ -41,6 +66,9 @@ def setup(bot):
             logger.info("YouTube Check Task gestartet (alle 10 Minuten)")
 
 async def check_youtube(bot, channel):
+    global lastvids
+    if not lastvids:
+        await read_lastvids()
     url = (f"https://www.googleapis.com/youtube/v3/search?part=snippet"
            f"&channelId={config.YOUTUBE_CHANNEL_ID}&maxResults=2&order=date&key={config.YT_API_KEY}")
     
@@ -53,9 +81,6 @@ async def check_youtube(bot, channel):
                 
                 data = await resp.json()
                 logger.info(f"YouTube API Response: {len(data.get('items', []))} Videos gefunden")
-
-        with open(LASTVID_PATH, "r") as f:
-            lastvids = json.load(f)
 
         new_videos_count = 0
         for video in data.get("items", []):
@@ -74,8 +99,7 @@ async def check_youtube(bot, channel):
                 new_videos_count += 1
                 logger.info(f"Neues YouTube Video gepostet: {title}")
 
-                with open(LASTVID_PATH, "w") as f:
-                    json.dump(lastvids, f)
+                await save_lastvids()
         
         if new_videos_count == 0:
             logger.info("Keine neuen YouTube Videos gefunden")
