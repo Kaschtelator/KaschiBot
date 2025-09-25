@@ -29,7 +29,7 @@ async def read_last_games():
         last_games = []
 
 async def save_last_games():
-    global last_games  # Diese Zeile hinzugefügt
+    global last_games
     try:
         with open(DB_PATH, "w", encoding="utf-8") as f:
             json.dump(last_games, f, indent=2)
@@ -37,33 +37,38 @@ async def save_last_games():
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Steam Games Datenbank: {e}")
 
-async def fetch_free_steam_games(bot):
-    global last_games  # Diese Zeile war das Problem - fehlte!
-    logger.info("Suche nach kostenlosen Steam-Spielen...")
-    
+async def fetch_free_steam_games(bot, force_chat_output=False, context_channel=None, triggered_by="Task"):
+    global last_games
+    logger.info(f"Suche nach kostenlosen Steam-Spielen... (Ausgelöst von: {triggered_by})")
+
     async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0"}) as session:
         url = "https://store.steampowered.com/search/?maxprice=free&category1=998%2C996&specials=1&ndl=1"
-        
         try:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     logger.error(f"Steam Store Error: {resp.status}")
+                    if force_chat_output and context_channel:
+                        await context_channel.send("🚫 Fehler beim Abrufen der Steam-Daten.")
                     return
-                    
+
                 html_text = await resp.text()
                 if not html_text:
                     logger.warning("Keine HTML-Daten von Steam Store erhalten")
+                    if force_chat_output and context_channel:
+                        await context_channel.send("⚠️ Keine Daten vom Steam Store erhalten.")
                     return
 
             import re
             appid_matches = re.findall(r'data-ds-appid="(\d+)"', html_text)
             if not appid_matches:
                 logger.info("Keine Steam AppIDs gefunden")
+                if force_chat_output and context_channel:
+                    await context_channel.send("ℹ️ Keine kostenlosen Steam-Games gefunden.")
                 return
 
             unique_appids = list(set(appid_matches))
             logger.info(f"{len(unique_appids)} Steam Apps gefunden")
-            
+
             game_info_tasks = []
             for appid in unique_appids:
                 api_url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
@@ -71,10 +76,15 @@ async def fetch_free_steam_games(bot):
 
             responses = await asyncio.gather(*game_info_tasks, return_exceptions=True)
 
-            channel = bot.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
-            if not channel:
-                logger.error("Steam Freegames Channel nicht gefunden")
+            post_channel = bot.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
+            if not post_channel:
+                logger.error("Steam Freegames Channel aus config nicht gefunden")
+                if force_chat_output and context_channel:
+                    await context_channel.send("🚫 Fehler: Freigabe-Channel nicht gefunden, Spiele können nicht gepostet werden.")
                 return
+
+            if force_chat_output and context_channel:
+                await context_channel.send("🔎 Suche nach neuen kostenlosen Spielen auf Steam ...")
 
             new_games_count = 0
             for response in responses:
@@ -118,49 +128,51 @@ async def fetch_free_steam_games(bot):
                 embed.set_image(url=image)
                 embed.timestamp = datetime.utcnow()
 
-                try:
-                    await channel.send("@everyone", embed=embed)
-                    logger.info(f"Neues kostenloses Steam Game gepostet: {title}")
-                    new_games_count += 1
-                except Exception as e:
-                    logger.error(f"Fehler beim Senden der Steam Nachricht: {e}")
-                    continue
+                await post_channel.send("@everyone", embed=embed)
+
+                logger.info(f"Neues kostenloses Steam Game gepostet: {title} (Ausgelöst von: {triggered_by})")
+                new_games_count += 1
 
                 last_games.append({"appId": appid, "title": title, "date": datetime.utcnow().isoformat()})
 
             if len(last_games) > 100:
-                last_games = last_games[-100:]  # Behalte nur die letzten 100
+                last_games = last_games[-100:]
 
             await save_last_games()
-            
-            if new_games_count == 0:
-                logger.info("Keine neuen Steam Games gefunden")
-            else:
-                logger.info(f"Steam Check abgeschlossen: {new_games_count} neue Spiele gefunden")
-            
+
+            if force_chat_output and context_channel:
+                if new_games_count == 0:
+                    await context_channel.send("✔️ Keine neuen kostenlosen Steam-Spiele entdeckt.")
+                else:
+                    await context_channel.send(f"✅ Es wurden {new_games_count} neue Steam-Spiele gepostet!")
+
+            logger.info(f"Steam Check abgeschlossen: {new_games_count} neue Spiele gefunden (Ausgelöst von: {triggered_by})")
+
         except Exception as e:
             logger.error(f"Fehler beim Steam Check: {e}")
+            if force_chat_output and context_channel:
+                await context_channel.send(f"⛔ Fehler beim Steam-Check: {e}")
 
-async def check_steam_free_games(bot):
-    await read_last_games()
-    await fetch_free_steam_games(bot)
+async def check_steam_free_games(bot, force_chat_output=False, context_channel=None, triggered_by="Task"):
+    if not last_games:
+        await read_last_games()
+    await fetch_free_steam_games(bot, force_chat_output, context_channel, triggered_by)
 
 def setup(bot):
-    @tasks.loop(hours=1)  # Alle 1 Stunde
+    asyncio.run(read_last_games())  # robustes synchrones Laden vor Task
+
+    @tasks.loop(hours=1)
     async def steam_check():
-        logger.info("Starte Steam Free Games Check")
-        await check_steam_free_games(bot)
+        logger.info("Starte Steam Free Games Check (Task)")
+        await check_steam_free_games(bot, force_chat_output=False, triggered_by="Auto-Task")
 
     @bot.command()
     async def steamfree(ctx):
-        """Manueller Befehl, um die kostenlosen Steam-Spiele zu prüfen und zu posten."""
         logger.info(f"Manueller Steam Check von {ctx.author}")
-        await ctx.send("Starte manuellen Check für kostenlose Steam-Spiele...")
         try:
-            await check_steam_free_games(bot)
-            await ctx.send("Check abgeschlossen.")
+            await check_steam_free_games(bot, force_chat_output=True, context_channel=ctx.channel, triggered_by=ctx.author)
         except Exception as e:
-            await ctx.send(f"Fehler beim Check: {e}")
+            await ctx.send(f"Fehler beim Steam-Check: {e}")
 
     @bot.listen()
     async def on_ready():
