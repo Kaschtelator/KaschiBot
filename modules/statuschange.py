@@ -52,7 +52,6 @@ def setup(bot):
 
     @bot.event
     async def on_ready():
-        # Status automatisch laden und setzen beim Start
         status_data = load_status()
         try:
             await bot.change_presence(activity=discord.Streaming(
@@ -61,3 +60,10 @@ def setup(bot):
             ))
         except Exception as e:
             print(f"Fehler beim automatischen Setzen des Status beim Start: {e}")
+
+    @bot.event
+    async def on_command_error(ctx, error):
+        if isinstance(error, commands.CommandNotFound):
+            # Ignoriere unbekannte Befehle still, keine Fehlermeldung
+            return
+        raise error
