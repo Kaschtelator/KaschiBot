@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 logger.info("🚀 Kaschibot wird gestartet...")
 
 # --- Bot-Setup ---
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all(), help_command=None)
 MODULE_DIR = os.path.join(os.path.dirname(__file__), "modules")
 
 # Tracket für jedes Modul, welche Commands es registriert hat
@@ -52,24 +52,23 @@ def load_module(name: str):
             logger.debug(f"Setup-Funktion für {name} ausgeführt")
         else:
             logger.warning(f"Modul {name} hat keine setup()-Funktion")
-        
         after = {c.name for c in bot.commands}
         new_cmds = list(after - before)
         loaded_commands[name] = new_cmds
         logger.info(f"✅ Modul geladen: {name} → Commands: {new_cmds}")
-        
     except Exception as e:
         logger.error(f"❌ Fehler beim Laden von Modul {name}: {e}")
 
 def reload_module(name: str):
     logger.info(f"🔄 Lade Modul neu: {name}")
-    
-    # Entferne alte Commands
+
+    # Entferne alte Commands, falls registriert
     old_commands = loaded_commands.get(name, [])
     for cmd_name in old_commands:
-        bot.remove_command(cmd_name)
-        logger.debug(f"Command '{cmd_name}' entfernt")
-    
+        if bot.get_command(cmd_name):
+            bot.remove_command(cmd_name)
+            logger.debug(f"Command '{cmd_name}' entfernt")
+
     try:
         full = f"modules.{name}"
         module = sys.modules.get(full)
@@ -79,36 +78,42 @@ def reload_module(name: str):
         else:
             module = importlib.import_module(full)
             logger.debug(f"Modul {name} importiert")
-        
         before = {c.name for c in bot.commands}
         if hasattr(module, "setup"):
             module.setup(bot)
-        
         after = {c.name for c in bot.commands}
         loaded_commands[name] = list(after - before)
         logger.info(f"🔄 Modul neu geladen: {name} → Commands: {loaded_commands[name]}")
-        
     except Exception as e:
         logger.error(f"❌ Fehler beim Neuladen {name}: {e}")
 
 class ModuleWatcher(FileSystemEventHandler):
+    def __init__(self):
+        self._debounce = {}
+
     def on_modified(self, event):
         if event.is_directory or not event.src_path.endswith(".py"):
             return
-        
+
         name = os.path.splitext(os.path.basename(event.src_path))[0]
         if name == "__init__" or name not in loaded_commands:
             logger.debug(f"Datei {name} ignoriert (nicht überwacht)")
             return
-        
+
+        import time
+        now = time.time()
+        last = self._debounce.get(name, 0)
+        if now - last < 1:  # 1 Sekunde Debounce
+            return
+        self._debounce[name] = now
+
         logger.info(f"📝 Dateiänderung erkannt: {name}.py")
         reload_module(name)
 
 @bot.event
 async def on_ready():
     logger.info(f"🤖 {bot.user} ist online!")
-    
-    # Status setzen
+
     try:
         await bot.change_presence(activity=discord.Streaming(
             name=config.STATUS_NAME,
@@ -117,12 +122,11 @@ async def on_ready():
         logger.info(f"📺 Status gesetzt: {config.STATUS_NAME}")
     except Exception as e:
         logger.error(f"❌ Fehler beim Setzen des Status: {e}")
-    
-    # Guild-Informationen loggen
+
     guild_count = len(bot.guilds)
     member_count = sum(guild.member_count for guild in bot.guilds)
     logger.info(f"🏰 Verbunden mit {guild_count} Server(n) und {member_count} Mitgliedern")
-    
+
     logger.info(f"👀 Überwache Modul-Verzeichnis: {MODULE_DIR}/")
 
 @bot.event
@@ -139,7 +143,10 @@ async def on_command(ctx):
 
 @bot.event
 async def on_command_error(ctx, error):
-    logger.error(f"❌ Command-Fehler in '{ctx.command}': {error}")
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("❓ Unbekannter Befehl. Tippe `!bothilfe` für alle verfügbaren Commands.")
+    else:
+        logger.error(f"❌ Command-Fehler in '{ctx.command}': {error}")
 
 # --- Initiales Laden aller Module ---
 logger.info(f"📁 Suche nach Modulen in: {MODULE_DIR}")
