@@ -6,10 +6,13 @@ import logging
 from discord.ext import tasks, commands
 import config
 import asyncio
+import html
+
 
 logger = logging.getLogger(__name__)
 LASTVID_PATH = "datenbank/lastVideos.json"
 lastvids = []
+
 
 async def read_lastvids():
     global lastvids
@@ -28,14 +31,16 @@ async def read_lastvids():
         logger.error(f"Fehler beim Laden der YouTube Videos Datenbank: {e}")
         lastvids = []
 
+
 async def save_lastvids():
     global lastvids
     try:
         with open(LASTVID_PATH, "w") as f:
-            json.dump(lastvids, f)
+            json.dump(lastvids, f, indent=2)
         logger.info("YouTube Videos Datenbank gespeichert")
     except Exception as e:
         logger.error(f"Fehler beim Speichern der YouTube Videos Datenbank: {e}")
+
 
 def setup(bot):
     asyncio.run(read_lastvids())
@@ -59,26 +64,49 @@ def setup(bot):
         else:
             await ctx.send("YouTube-Channel nicht gefunden.")
 
+    @bot.command(name="showposted")
+    async def show_posted(ctx):
+        if not lastvids:
+            await ctx.send("Keine Videos in der Datenbank.")
+            return
+
+        lines = [f"Gepostete Videos ({len(lastvids)}):"]
+        for v in lastvids:
+            line = f"{v.get('timestamp', 'unbekannt')} - {v.get('author', 'unbekannt')}: {v.get('title', 'kein Titel')} ({v.get('url', '')})"
+            lines.append(line)
+
+        chunk_size = 1900
+        msg = ""
+        for line in lines:
+            if len(msg) + len(line) + 1 > chunk_size:
+                await ctx.send(msg)
+                msg = ""
+            msg += line + "\n"
+
+        if msg:
+            await ctx.send(msg)
+
     @bot.listen()
     async def on_ready():
         if not youtube_check.is_running():
             youtube_check.start()
             logger.info("YouTube Check Task gestartet (alle 10 Minuten)")
 
+
 async def check_youtube(bot, channel):
     global lastvids
-    if not lastvids:
-        await read_lastvids()
+    #Immer die aktuelle Datei laden, um Änderungen live zu übernehmen
+    await read_lastvids()
     url = (f"https://www.googleapis.com/youtube/v3/search?part=snippet"
            f"&channelId={config.YOUTUBE_CHANNEL_ID}&maxResults=2&order=date&key={config.YT_API_KEY}")
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     logger.error(f"YouTube API Error: {resp.status}")
                     return
-                
+
                 data = await resp.json()
                 logger.info(f"YouTube API Response: {len(data.get('items', []))} Videos gefunden")
 
@@ -89,18 +117,26 @@ async def check_youtube(bot, channel):
                 continue
 
             if not any(v["id"] == vidid for v in lastvids):
-                title = video["snippet"]["title"]
+                title = html.unescape(video["snippet"]["title"])
                 video_url = f"https://youtube.com/watch?v={vidid}"
                 author = video["snippet"]["channelTitle"]
+                timestamp = video["snippet"]["publishedAt"]
+
                 msg = f"Hey Leute, **{author}** hat **\"{title}\"** hochgeladen: {video_url}"
 
                 await channel.send(msg)
-                lastvids.append({"id": vidid, "timestamp": video["snippet"]["publishedAt"]})
+                lastvids.append({
+                    "id": vidid,
+                    "title": title,
+                    "author": author,
+                    "url": video_url,
+                    "timestamp": timestamp
+                })
                 new_videos_count += 1
                 logger.info(f"Neues YouTube Video gepostet: {title}")
 
                 await save_lastvids()
-        
+
         if new_videos_count == 0:
             logger.info("Keine neuen YouTube Videos gefunden")
         else:
