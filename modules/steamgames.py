@@ -8,9 +8,11 @@ from discord.ext import tasks, commands
 from discord import Embed
 import config
 
+
 logger = logging.getLogger(__name__)
 DB_PATH = "datenbank/lastSteamGames.json"
 last_games = []
+
 
 async def read_last_games():
     global last_games
@@ -28,6 +30,7 @@ async def read_last_games():
         logger.error(f"Fehler beim Laden der Steam Games Datenbank: {e}")
         last_games = []
 
+
 async def save_last_games():
     global last_games
     try:
@@ -37,9 +40,13 @@ async def save_last_games():
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Steam Games Datenbank: {e}")
 
+
 async def fetch_free_steam_games(bot, force_chat_output=False, context_channel=None, triggered_by="Task"):
     global last_games
     logger.info(f"Suche nach kostenlosen Steam-Spielen... (Ausgelöst von: {triggered_by})")
+
+    # Neu einlesen für Live-Update
+    await read_last_games()
 
     async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0"}) as session:
         url = "https://store.steampowered.com/search/?maxprice=free&category1=998%2C996&specials=1&ndl=1"
@@ -153,18 +160,22 @@ async def fetch_free_steam_games(bot, force_chat_output=False, context_channel=N
             if force_chat_output and context_channel:
                 await context_channel.send(f"⛔ Fehler beim Steam-Check: {e}")
 
+
 async def check_steam_free_games(bot, force_chat_output=False, context_channel=None, triggered_by="Task"):
     if not last_games:
         await read_last_games()
     await fetch_free_steam_games(bot, force_chat_output, context_channel, triggered_by)
 
+
 def setup(bot):
     asyncio.run(read_last_games())  # robustes synchrones Laden vor Task
+
 
     @tasks.loop(hours=1)
     async def steam_check():
         logger.info("Starte Steam Free Games Check (Task)")
         await check_steam_free_games(bot, force_chat_output=False, triggered_by="Auto-Task")
+
 
     @bot.command()
     async def steamfree(ctx):
@@ -173,6 +184,7 @@ def setup(bot):
             await check_steam_free_games(bot, force_chat_output=True, context_channel=ctx.channel, triggered_by=ctx.author)
         except Exception as e:
             await ctx.send(f"Fehler beim Steam-Check: {e}")
+
 
     @bot.listen()
     async def on_ready():
