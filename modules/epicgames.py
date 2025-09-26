@@ -7,11 +7,9 @@ from discord.ext import tasks, commands
 import config
 import asyncio
 
-
 logger = logging.getLogger(__name__)
 LASTGAME_PATH = "datenbank/lastEpicGames.json"
 lastgames = []
-
 
 async def read_last_games():
     global lastgames
@@ -22,7 +20,6 @@ async def read_last_games():
         logger.info("Epic Games Datenbank erstellt")
         return
 
-
     try:
         with open(LASTGAME_PATH, "r") as f:
             lastgames = json.load(f)
@@ -31,21 +28,20 @@ async def read_last_games():
         logger.error(f"Fehler beim Laden der Epic Games Datenbank: {e}")
         lastgames = []
 
-
 async def save_last_games():
     global lastgames
     try:
         with open(LASTGAME_PATH, "w") as f:
-            json.dump(lastgames, f)
+            json.dump(lastgames, f, indent=2)
         logger.info("Epic Games Datenbank gespeichert")
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Epic Games Datenbank: {e}")
 
-
 async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt"):
     global lastgames
-    if not lastgames:
-        await read_last_games()
+    # Neu einlesen für Live-Update
+    await read_last_games()
+
     url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=de-DE&country=DE&allowCountries=DE"
     
     try:
@@ -65,7 +61,6 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                     if force_chat_output:
                         await channel.send("ℹ️ Zurzeit sind keine Gratis-Spiele im Epic Games Store verfügbar.")
                     return
-
 
         new_games_count = 0
         for game in promotions:
@@ -99,11 +94,9 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                     if post_channel:
                         await post_channel.send("@everyone", embed=embed)
 
-
                 lastgames.append({"id": game["id"]})
                 new_games_count += 1
                 logger.info(f"Neues kostenloses Epic Game gepostet: {title} (Ausgelöst von: {triggered_by})")
-
 
         await save_last_games()
         
@@ -116,12 +109,10 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
             if force_chat_output:
                 await channel.send(f"✅ Es wurden {new_games_count} neue kostenlose Spiele gepostet!")
 
-
     except Exception as e:
         logger.error(f"Fehler beim Epic Games Check: {e} (Ausgelöst von: {triggered_by})")
         if force_chat_output:
             await channel.send(f"⛔ Fehler beim Epic Games-Check: {e}")
-
 
 def setup(bot):
     asyncio.run(read_last_games())  # sicheres synchrones Laden (keine EventLoop Fehler)
