@@ -1,5 +1,7 @@
 from discord.ext import commands
 import discord
+import logging
+logger = logging.getLogger(__name__)
 
 def split_text(text, max_length=1024):
     """Teilt einen langen Text in mehrere Strings auf, die maximal max_length lang sind."""
@@ -18,8 +20,10 @@ def split_text(text, max_length=1024):
 
 def setup(bot: commands.Bot):
 
-    @bot.command(name="bothilfe")
-    async def bothilfe(ctx: commands.Context):
+    @bot.command(name="kaschibothilfe")
+    async def kaschibothilfe(ctx: commands.Context):
+        print(f"'kaschibothilfe' Command aufgerufen von {ctx.author} ({ctx.message.id})")
+
         """Zeigt alle verfügbaren Commands in einem Embed an."""
 
         embed = discord.Embed(title="Befehlsübersicht", color=0x00ff00)
@@ -32,7 +36,7 @@ def setup(bot: commands.Bot):
             if cog_name not in cogs:
                 cogs[cog_name] = []
             cogs[cog_name].append(cmd)
-
+        
         for cog_name in sorted(cogs):
             cmds = cogs[cog_name]
             cmds.sort(key=lambda c: c.name)
@@ -41,7 +45,6 @@ def setup(bot: commands.Bot):
                 description = cmd.help or "Keine Beschreibung"
                 field_value += f"**!{cmd.name}** - {description}\n"
             
-            # Text aufteilen wenn länger als 1024
             chunks = split_text(field_value)
             for i, chunk in enumerate(chunks):
                 embed.add_field(
