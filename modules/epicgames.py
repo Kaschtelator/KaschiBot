@@ -7,9 +7,14 @@ from discord.ext import tasks, commands
 import config
 import asyncio
 
+
 logger = logging.getLogger(__name__)
 LASTGAME_PATH = "datenbank/lastEpicGames.json"
 lastgames = []
+
+# DEBUG-SCHALTER
+DEBUG = False
+
 
 async def read_last_games():
     global lastgames
@@ -28,6 +33,7 @@ async def read_last_games():
         logger.error(f"Fehler beim Laden der Epic Games Datenbank: {e}")
         lastgames = []
 
+
 async def save_last_games():
     global lastgames
     try:
@@ -37,44 +43,266 @@ async def save_last_games():
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Epic Games Datenbank: {e}")
 
+
+def debug_log(message: str):
+    """Hilfsfunktion für Debug-Logging"""
+    if DEBUG:
+        logger.debug(f"[DEBUG] {message}")
+
+
 async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt"):
     global lastgames
-    # Neu einlesen für Live-Update
+    
+    if DEBUG:
+        logger.info(f"=== EPIC CHECK GESTARTET (Ausgelöst von: {triggered_by}) ===")
+    
     await read_last_games()
 
     url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=de-DE&country=DE&allowCountries=DE"
     
     try:
+        debug_log(f"Starte HTTP-Request zu: {url}")
+        
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status != 200:
-                    logger.error(f"Epic API Error: {resp.status} (Ausgelöst von: {triggered_by})")
-                    if force_chat_output:
-                        await channel.send("🚫 Fehler beim Abrufen der Epic Games-Daten.")
-                    return
-                
-                data = await resp.json()
-                promotions = data.get("data", {}).get("Catalog", {}).get("searchStore", {}).get("elements", [])
-                
-                if not promotions:
-                    logger.info(f"Keine Epic Games Promotions gefunden (Ausgelöst von: {triggered_by})")
-                    if force_chat_output:
-                        await channel.send("ℹ️ Zurzeit sind keine Gratis-Spiele im Epic Games Store verfügbar.")
-                    return
+            debug_log("ClientSession erstellt")
+            
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    logger.info(f"HTTP-Response erhalten: Status {resp.status}")
+                    
+                    if resp.status != 200:
+                        logger.error(f"Epic API Error: {resp.status} (Ausgelöst von: {triggered_by})")
+                        if force_chat_output:
+                            await channel.send("🚫 Fehler beim Abrufen der Epic Games-Daten.")
+                        return
+                    
+                    debug_log("Response-Status ist 200, versuche JSON zu parsen...")
+                    
+                    try:
+                        data = await resp.json()
+                        debug_log(f"JSON erfolgreich geparst. Root-Type: {type(data)}")
+                        
+                        if isinstance(data, dict):
+                            debug_log(f"Root ist ein Dictionary. Top-Level Keys: {list(data.keys())}")
+                        else:
+                            logger.error(f"Root ist KEIN Dictionary, sondern: {type(data)}")
+                            return
+                        
+                        # DEBUG: Speichere die komplette API-Antwort
+                        if DEBUG:
+                            debug_path = "datenbank/epic_api_debug.json"
+                            os.makedirs(os.path.dirname(debug_path), exist_ok=True)
+                            try:
+                                with open(debug_path, "w", encoding="utf-8") as debug_file:
+                                    json.dump(data, debug_file, indent=2, ensure_ascii=False)
+                                debug_log(f"Debug-Datei gespeichert: {debug_path}")
+                            except Exception as save_error:
+                                logger.error(f"Fehler beim Speichern der Debug-Datei: {save_error}", exc_info=True)
+                        
+                    except json.JSONDecodeError as json_error:
+                        logger.error(f"JSON Parse-Fehler: {json_error}", exc_info=True)
+                        response_text = await resp.text()
+                        logger.error(f"Response Text (erste 500 Zeichen): {response_text[:500]}")
+                        return
+                    except Exception as parse_error:
+                        logger.error(f"Unerwarteter Fehler beim JSON-Parsen: {parse_error}", exc_info=True)
+                        return
+                    
+            except asyncio.TimeoutError:
+                logger.error("HTTP-Request Timeout (30 Sekunden überschritten)")
+                if force_chat_output:
+                    await channel.send("🚫 Timeout beim Abrufen der Epic Games-Daten.")
+                return
+            except Exception as http_error:
+                logger.error(f"HTTP-Request Fehler: {http_error}", exc_info=True)
+                if force_chat_output:
+                    await channel.send(f"🚫 Fehler beim HTTP-Request: {http_error}")
+                return
+        
+        debug_log("ClientSession geschlossen")
+        debug_log("Beginne Datenverarbeitung...")
+        
+        # Schritt-für-Schritt Zugriff
+        debug_log("Schritt 1: Zugriff auf data['data']")
+        if "data" not in data:
+            logger.error(f"'data' Key existiert nicht. Verfügbare Keys: {list(data.keys())}")
+            return
+        
+        data_root = data.get("data")
+        debug_log(f"data['data'] erhalten. Type: {type(data_root)}")
+        
+        if data_root is None:
+            logger.error("data['data'] ist None")
+            return
+        
+        if not isinstance(data_root, dict):
+            logger.error(f"data['data'] ist kein Dictionary: {type(data_root)}")
+            return
+        
+        debug_log(f"data['data'] ist Dictionary. Keys: {list(data_root.keys())}")
+        
+        # Schritt 2
+        debug_log("Schritt 2: Zugriff auf data['data']['Catalog']")
+        if "Catalog" not in data_root:
+            logger.error(f"'Catalog' Key existiert nicht. Verfügbare Keys: {list(data_root.keys())}")
+            return
+        
+        catalog = data_root.get("Catalog")
+        debug_log(f"Catalog erhalten. Type: {type(catalog)}")
+        
+        if catalog is None:
+            logger.error("Catalog ist None")
+            return
+        
+        if not isinstance(catalog, dict):
+            logger.error(f"Catalog ist kein Dictionary: {type(catalog)}")
+            return
+        
+        debug_log(f"Catalog ist Dictionary. Keys: {list(catalog.keys())}")
+        
+        # Schritt 3
+        debug_log("Schritt 3: Zugriff auf searchStore")
+        if "searchStore" not in catalog:
+            logger.error(f"'searchStore' Key existiert nicht. Verfügbare Keys: {list(catalog.keys())}")
+            return
+        
+        searchStore = catalog.get("searchStore")
+        debug_log(f"searchStore erhalten. Type: {type(searchStore)}")
+        
+        if searchStore is None:
+            logger.error("searchStore ist None")
+            return
+        
+        if not isinstance(searchStore, dict):
+            logger.error(f"searchStore ist kein Dictionary: {type(searchStore)}")
+            return
+        
+        debug_log(f"searchStore ist Dictionary. Keys: {list(searchStore.keys())}")
+        
+        # Schritt 4
+        debug_log("Schritt 4: Zugriff auf elements")
+        if "elements" not in searchStore:
+            logger.error(f"'elements' Key existiert nicht. Verfügbare Keys: {list(searchStore.keys())}")
+            return
+        
+        promotions = searchStore.get("elements")
+        debug_log(f"elements erhalten. Type: {type(promotions)}")
+        
+        if promotions is None:
+            logger.error("elements ist None")
+            promotions = []
+        
+        if not isinstance(promotions, list):
+            logger.error(f"elements ist keine Liste: {type(promotions)}")
+            promotions = []
+        
+        logger.info(f"elements ist Liste mit {len(promotions)} Elementen")
+
+        if not promotions:
+            logger.info(f"Keine Epic Games Promotions gefunden (Ausgelöst von: {triggered_by})")
+            if force_chat_output:
+                await channel.send("ℹ️ Zurzeit sind keine Gratis-Spiele im Epic Games Store verfügbar.")
+            return
+
+        logger.info(f"Beginne Verarbeitung von {len(promotions)} Spielen...")
 
         new_games_count = 0
-        for game in promotions:
-            if (game.get("promotions") and game["promotions"].get("promotionalOffers")):
-                if any(g["id"] == game["id"] for g in lastgames):
+        for idx, game in enumerate(promotions):
+            try:
+                debug_log(f"Verarbeite Spiel #{idx}")
+                
+                if not isinstance(game, dict):
+                    debug_log(f"Spiel #{idx} ist kein Dictionary: {type(game)}")
+                    continue
+
+                title = game.get("title", "Unbekannt")
+                game_id = game.get("id")
+                
+                # Prüfe die Promotions-Struktur
+                promotions_obj = game.get("promotions")
+                debug_log(f"Spiel #{idx} ({title}): promotions_obj = {type(promotions_obj)}")
+                
+                if not promotions_obj or not isinstance(promotions_obj, dict):
+                    debug_log(f"Spiel #{idx} ({title}): Keine gültigen promotions")
                     continue
                 
-                title = game.get("title", "Unbekannt")
-                pageSlug = (game.get("catalogNs", {}).get("mappings", [{}])[0].get("pageSlug") or game.get("productSlug", ""))
-                game_url = f"https://www.epicgames.com/store/de/p/{pageSlug}"
-                game_image = (game.get("keyImages", [{}])[0].get("url") or "https://cdn2.unrealengine.com/placeholder-image.jpg")
+                promotional_offers = promotions_obj.get("promotionalOffers")
+                debug_log(f"Spiel #{idx} ({title}): promotionalOffers vorhanden = {promotional_offers is not None and len(promotional_offers) > 0}")
                 
-                price_info = game.get("price", {}).get("totalPrice", {}).get("fmtPrice", {})
-                original_price_raw = price_info.get("originalPrice", "")
+                if not promotional_offers or len(promotional_offers) == 0:
+                    debug_log(f"Spiel #{idx} ({title}): Keine promotionalOffers gefunden")
+                    continue
+                
+                # **WICHTIG:** Prüfe ob es wirklich KOSTENLOS (100% Rabatt) ist!
+                is_free_game = False
+                discount_percentage = None
+                
+                for offer_idx, offer in enumerate(promotional_offers):
+                    if isinstance(offer, dict):
+                        promo_data = offer.get("promotionalOffers", [])
+                        if promo_data and len(promo_data) > 0:
+                            for promo in promo_data:
+                                if isinstance(promo, dict):
+                                    discount_setting = promo.get("discountSetting", {})
+                                    if isinstance(discount_setting, dict):
+                                        discount_pct = discount_setting.get("discountPercentage", 0)
+                                        discount_percentage = discount_pct
+                                        
+                                        # NUR 100% Rabatt = Kostenlos!
+                                        if discount_pct == 0 or discount_pct == 100:
+                                            is_free_game = True
+                                            debug_log(f"Spiel #{idx} ({title}): ✓ 100% Rabatt gefunden = KOSTENLOS!")
+                                            break
+                                        else:
+                                            debug_log(f"Spiel #{idx} ({title}): Nur {discount_pct}% Rabatt (nicht kostenlos)")
+                    
+                    if is_free_game:
+                        break
+                
+                if not is_free_game:
+                    debug_log(f"Spiel #{idx} ({title}): Nicht kostenlos (Rabatt: {discount_percentage}%)")
+                    continue
+
+                # Prüfe ob bereits gepostet
+                if not game_id:
+                    logger.warning(f"Spiel #{idx} ({title}): Keine ID")
+                    continue
+                    
+                if any(g.get("id") == game_id for g in lastgames):
+                    debug_log(f"Spiel #{idx} ({title}): Bereits gepostet")
+                    continue
+                
+                logger.info(f"✓ Neues kostenloses Spiel gefunden: {title}")
+                
+                catalogNs = game.get("catalogNs")
+                pageSlug = ""
+                if catalogNs and isinstance(catalogNs, dict):
+                    mappings = catalogNs.get("mappings")
+                    if mappings and isinstance(mappings, list) and len(mappings) > 0:
+                        first_mapping = mappings[0]
+                        if isinstance(first_mapping, dict):
+                            pageSlug = first_mapping.get("pageSlug", "")
+                
+                if not pageSlug:
+                    pageSlug = game.get("productSlug", "")
+                
+                game_url = f"https://www.epicgames.com/store/de/p/{pageSlug}" if pageSlug else "https://www.epicgames.com/store/de/"
+                
+                keyImages = game.get("keyImages", [])
+                game_image = "https://cdn2.unrealengine.com/placeholder-image.jpg"
+                if keyImages and isinstance(keyImages, list) and len(keyImages) > 0:
+                    first_image = keyImages[0]
+                    if isinstance(first_image, dict):
+                        game_image = first_image.get("url", game_image)
+                
+                original_price_raw = ""
+                price_obj = game.get("price")
+                if price_obj and isinstance(price_obj, dict):
+                    totalPrice = price_obj.get("totalPrice")
+                    if totalPrice and isinstance(totalPrice, dict):
+                        fmtPrice = totalPrice.get("fmtPrice")
+                        if fmtPrice and isinstance(fmtPrice, dict):
+                            original_price_raw = fmtPrice.get("originalPrice", "")
                 
                 if original_price_raw and original_price_raw not in ["€0.00", "0", "0 €", "0,00 €"]:
                     original_price = f"💰 {original_price_raw} **→ Kostenlos!**"
@@ -90,13 +318,18 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                 if force_chat_output:
                     await channel.send("@everyone", embed=embed)
                 else:
-                    post_channel = channel.guild.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
-                    if post_channel:
-                        await post_channel.send("@everyone", embed=embed)
+                    if hasattr(channel, 'guild') and channel.guild:
+                        post_channel = channel.guild.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
+                        if post_channel:
+                            await post_channel.send("@everyone", embed=embed)
 
-                lastgames.append({"id": game["id"]})
+                lastgames.append({"id": game_id})
                 new_games_count += 1
-                logger.info(f"Neues kostenloses Epic Game gepostet: {title} (Ausgelöst von: {triggered_by})")
+                logger.info(f"✓ Spiel gepostet: {title}")
+
+            except Exception as e:
+                logger.error(f"Fehler bei Spiel #{idx}: {e}", exc_info=True)
+                continue
 
         await save_last_games()
         
@@ -105,17 +338,21 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
             if force_chat_output:
                 await channel.send("✔️ Keine neuen kostenlosen Spiele entdeckt.")
         else:
-            logger.info(f"Epic Games Check abgeschlossen: {new_games_count} neue Spiele gefunden (Ausgelöst von: {triggered_by})")
+            logger.info(f"Epic Games Check abgeschlossen: {new_games_count} neue Spiele gefunden")
             if force_chat_output:
                 await channel.send(f"✅ Es wurden {new_games_count} neue kostenlose Spiele gepostet!")
+        
+        if DEBUG:
+            logger.info(f"=== EPIC CHECK BEENDET ===\n")
 
     except Exception as e:
-        logger.error(f"Fehler beim Epic Games Check: {e} (Ausgelöst von: {triggered_by})")
+        logger.error(f"KRITISCHER FEHLER: {e} (Ausgelöst von: {triggered_by})", exc_info=True)
         if force_chat_output:
             await channel.send(f"⛔ Fehler beim Epic Games-Check: {e}")
 
+
 def setup(bot):
-    asyncio.run(read_last_games())  # sicheres synchrones Laden (keine EventLoop Fehler)
+    asyncio.run(read_last_games())
 
     @tasks.loop(minutes=30)
     async def epic_check():
