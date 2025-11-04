@@ -6,23 +6,34 @@ import asyncio
 from datetime import datetime, timedelta
 from discord.ext import commands
 
+
 DICE_DB_PATH = "datenbank/user_dice.json"
+
 
 def ensure_json(path):
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
             json.dump({}, f)
 
+
 def load_json(path):
     ensure_json(path)
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def save_json(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
+
+async def read_user_dice():
+    global DICE_DB_PATH
+    ensure_json(DICE_DB_PATH)
+
+
 def setup(bot: commands.Bot):
+    # Beim Setup sync prüfen/initialisieren
     ensure_json(DICE_DB_PATH)
 
     @bot.command(name="würfel")
@@ -39,7 +50,6 @@ def setup(bot: commands.Bot):
             if now - last_time < timedelta(hours=1):
                 sides = entry["sides"]
                 result = secrets.randbelow(sides) + 1
-                # Nur einmal Hinweis anzeigen
                 if not entry.get("notified", False):
                     await ctx.send(f"🎲 Du würfelst einen d{sides} und bekommst **{result}**\n💡 Hinweis: Für die nächste Stunde wird derselbe Würfel verwendet. Tippe `!neuerwürfel` um eine neue Auswahl zu treffen.")
                     entry["notified"] = True
@@ -48,7 +58,6 @@ def setup(bot: commands.Bot):
                     await ctx.send(f"🎲 Du würfelst einen d{sides} und bekommst **{result}**")
                 return
 
-        # Neue Auswahl oder Cooldown abgelaufen
         await ctx.send(
             "Welchen Würfel möchtest du verwenden? Gib die Anzahl der Seiten ein "
             "(z.B. 6 für d6 oder 20 für d20)."
@@ -74,7 +83,6 @@ def setup(bot: commands.Bot):
             await ctx.send("Ungültiger Würfeltyp. Erlaubt: 4, 6, 8, 10, 12, 20, 100.")
             return
 
-        # Neue Auswahl: Timestamp zurücksetzen und notified auf False
         user_data[user_id] = {
             "sides": sides,
             "timestamp": now.isoformat(),
