@@ -10,7 +10,7 @@ from discord.ext import commands
 
 import config
 
-# --- Logging einrichten und doppelte Handler entfernen ---
+# --- Logging Setup ---
 root_logger = logging.getLogger()
 if root_logger.hasHandlers():
     root_logger.handlers.clear()
@@ -34,12 +34,13 @@ logging.getLogger("aiohttp").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.info("🚀 Kaschibot wird gestartet...")
 
-# --- Bot-Setup ---
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all(), help_command=None)
 MODULE_DIR = os.path.join(os.path.dirname(__file__), "modules")
 
-# Tracket für jedes Modul, welche Commands es registriert hat
 loaded_commands = {}
+
+# Registrierung von Modul-Funktionen für Nachrichten-Events
+registered_message_handlers = []
 
 def load_module(name: str):
     logger.info(f"📦 Lade Modul: {name}")
@@ -55,19 +56,27 @@ def load_module(name: str):
         after = {c.name for c in bot.commands}
         new_cmds = list(after - before)
         loaded_commands[name] = new_cmds
+
+        # Falls Modul einen message handler registriert, sammeln
+        if hasattr(module, "handle_status_message"):
+            registered_message_handlers.append(module.handle_status_message)
+
         logger.info(f"✅ Modul geladen: {name} → Commands: {new_cmds}")
     except Exception as e:
         logger.error(f"❌ Fehler beim Laden von Modul {name}: {e}")
 
 def reload_module(name: str):
-    logger.info(f"🔄 Lade Modul neu: {name}")
+    logger.info(f"🔄 Modul neu laden: {name}")
 
-    # Entferne alte Commands, falls registriert
     old_commands = loaded_commands.get(name, [])
     for cmd_name in old_commands:
-        if bot.get_command(cmd_name):
+        cmd = bot.get_command(cmd_name)
+        if cmd:
             bot.remove_command(cmd_name)
             logger.debug(f"Command '{cmd_name}' entfernt")
+
+    # Entferne ggf. registrierte message handler vom Reload-Modul
+    # (natürlich müsste man sicherstellen, welchen handler das ist)
 
     try:
         full = f"modules.{name}"
@@ -78,12 +87,21 @@ def reload_module(name: str):
         else:
             module = importlib.import_module(full)
             logger.debug(f"Modul {name} importiert")
+
         before = {c.name for c in bot.commands}
         if hasattr(module, "setup"):
             module.setup(bot)
         after = {c.name for c in bot.commands}
+
         loaded_commands[name] = list(after - before)
+
+        # Wieder registrieren
+        if hasattr(module, "handle_status_message"):
+            if module.handle_status_message not in registered_message_handlers:
+                registered_message_handlers.append(module.handle_status_message)
+
         logger.info(f"🔄 Modul neu geladen: {name} → Commands: {loaded_commands[name]}")
+
     except Exception as e:
         logger.error(f"❌ Fehler beim Neuladen {name}: {e}")
 
@@ -103,7 +121,7 @@ class ModuleWatcher(FileSystemEventHandler):
         import time
         now = time.time()
         last = self._debounce.get(name, 0)
-        if now - last < 1:  # 1 Sekunde Debounce
+        if now - last < 1:
             return
         self._debounce[name] = now
 
@@ -113,20 +131,12 @@ class ModuleWatcher(FileSystemEventHandler):
 @bot.event
 async def on_ready():
     logger.info(f"🤖 {bot.user} ist online!")
-
-    try:
-        await bot.change_presence(activity=discord.Streaming(
-            name=config.STATUS_NAME,
-            url=config.STATUS_URL
-        ))
-        logger.info(f"📺 Status gesetzt: {config.STATUS_NAME}")
-    except Exception as e:
-        logger.error(f"❌ Fehler beim Setzen des Status: {e}")
+    for guild in bot.guilds:
+        logger.info(f"🏰 Verbunden mit Server: {guild.name} ({guild.id}), Mitglieder: {guild.member_count}")
 
     guild_count = len(bot.guilds)
     member_count = sum(guild.member_count for guild in bot.guilds)
     logger.info(f"🏰 Verbunden mit {guild_count} Server(n) und {member_count} Mitgliedern")
-
     logger.info(f"👀 Überwache Modul-Verzeichnis: {MODULE_DIR}/")
 
 @bot.event
@@ -144,11 +154,27 @@ async def on_command(ctx):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
+        if ctx.message.content.startswith("!BotKaschiCommand;"):
+            return
         await ctx.send("❓ Unbekannter Befehl. Tippe `!bothilfe` für alle verfügbaren Commands.")
     else:
         logger.error(f"❌ Command-Fehler in '{ctx.command}': {error}")
 
-# --- Initiales Laden aller Module ---
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    print("on_message empfangen")
+    
+    # Statuschange-Handler aufrufen
+    from modules import statuschange
+    await statuschange.handle_status_message(bot, message)
+
+    await bot.process_commands(message)
+
+
+
 logger.info(f"📁 Suche nach Modulen in: {MODULE_DIR}")
 module_files = [f for f in os.listdir(MODULE_DIR) if f.endswith(".py") and f != "__init__.py"]
 logger.info(f"🔍 {len(module_files)} Module gefunden: {', '.join(module_files)}")
@@ -157,14 +183,12 @@ for file in module_files:
     mod = file[:-3]
     load_module(mod)
 
-# --- Watchdog-Observer starten ---
 logger.info("👁️ Starte Datei-Watcher für Hot-Reload...")
 observer = Observer()
 observer.schedule(ModuleWatcher(), path=MODULE_DIR, recursive=False)
 observer.start()
 logger.info("✅ Hot-Reload Watcher gestartet")
 
-# --- Bot starten ---
 logger.info("🔌 Verbinde mit Discord...")
 try:
     bot.run(config.TOKEN)
