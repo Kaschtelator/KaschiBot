@@ -45,7 +45,7 @@ async def save_lastvids():
 def setup(bot):
     asyncio.run(read_lastvids())
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes=30) #Timer für den Loop
     async def youtube_check():
         logger.info("Starte YouTube Check")
         channel = bot.get_channel(config.YOUTUBE_DISCORD_CHANNEL_ID)
@@ -90,7 +90,7 @@ def setup(bot):
     async def on_ready():
         if not youtube_check.is_running():
             youtube_check.start()
-            logger.info("YouTube Check Task gestartet (alle 10 Minuten)")
+            logger.info("YouTube Check Task gestartet (alle 30 Minuten)")
 
 
 async def check_youtube(bot, channel):
