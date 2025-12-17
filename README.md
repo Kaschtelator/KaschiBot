@@ -69,14 +69,14 @@ python kaschibot.py
 
 ## ⚙️ Konfiguration
 
-Bearbeite `config.py` mit deinen Daten.
+Bearbeite `.env` mit deinen Daten.
 
 ### Discord Bot Setup
 
 1. Gehe zu https://discord.com/developers/applications
 2. **New Application** → Bot Name eingeben
 3. **Bot** → **Add Bot**
-4. **Token** kopieren → in `config.py` einfügen
+4. **Token** kopieren → in `.env` einfügen
 5. **OAuth2** → **URL Generator**:
    - Scopes: `bot`, `applications.commands`
    - Permissions: `Administrator` (oder spezifische Rechte)
