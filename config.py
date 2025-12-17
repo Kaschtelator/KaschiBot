@@ -14,23 +14,26 @@ BDAY_DISCORD_CHANNEL_ID = 123456789012345678
 CHECKCHANNEL_ID = 123456789012345678
 """
 
-# Bot-Token (Discord)
-TOKEN = "DEIN_DISCORD_BOT_TOKEN"
+import os
+from dotenv import load_dotenv
 
-# YouTube API-Schlüssel (für YouTube-Suche/Abfragen)
-YT_API_KEY = "DEIN_GOOGLE_API_KEY"
+# Lade .env Datei
+load_dotenv()
+
+# Bot-Token (Discord)
+TOKEN = os.getenv("DISCORD_TOKEN")
+
+# YouTube API-Schlüssel
+YT_API_KEY = os.getenv("YT_API_KEY")
 
 # YouTube Channels
-YOUTUBE_CHANNEL_ID = "UCxxxxxxxxxxxxxxx"
-YOUTUBE_DISCORD_CHANNEL_ID = 0
+YOUTUBE_CHANNEL_ID = os.getenv("YOUTUBE_CHANNEL_ID")
+YOUTUBE_CHANNEL_NAME = os.getenv("YOUTUBE_CHANNEL_NAME")
+YOUTUBE_DISCORD_CHANNEL_ID = int(os.getenv("YOUTUBE_DISCORD_CHANNEL_ID"))
 
-# Discord-Kanäle für Free Games, Geburtstage und Status-Checks
-FREEGAMES_DISCORD_CHANNEL_ID = 0
-BDAY_DISCORD_CHANNEL_ID = 0
-CHECKCHANNEL_ID = 0
-
-# Kanal für Willkommensnachrichten
-WELCOME_CHANNEL_ID = 0
-
-# Kanal für Abschiedsnachrichten
-GOODBYE_CHANNEL_ID = 0
+# Discord-Kanäle
+FREEGAMES_DISCORD_CHANNEL_ID = int(os.getenv("FREEGAMES_DISCORD_CHANNEL_ID"))
+BDAY_DISCORD_CHANNEL_ID = int(os.getenv("BDAY_DISCORD_CHANNEL_ID"))
+CHECKCHANNEL_ID = int(os.getenv("CHECKCHANNEL_ID"))
+WELCOME_CHANNEL_ID = int(os.getenv("WELCOME_CHANNEL_ID"))
+GOODBYE_CHANNEL_ID = int(os.getenv("GOODBYE_CHANNEL_ID"))
