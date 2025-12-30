@@ -1,4 +1,4 @@
-# Kaschibot
+# ƘƛƧƇӇƖƁƠƬ
 
 Ein umfassender Discord Bot für Community-Management mit automatischen Benachrichtigungen, Moderation und Event-Tracking.
 
