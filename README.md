@@ -1,4 +1,4 @@
-# 🤖 Kaschibot
+# Kaschibot
 
 Ein umfassender Discord Bot für Community-Management mit automatischen Benachrichtigungen, Moderation und Event-Tracking.
 
@@ -6,42 +6,42 @@ Ein umfassender Discord Bot für Community-Management mit automatischen Benachri
 ![Python](https://img.shields.io/badge/Python-3.8+-green?logo=python)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## ✨ Features
+##  Features
 
-### 🛡️ **Moderation**
+###  **Moderation**
 - Automatische Erkennung von Schimpfwörtern und toxischen Begriffen
 - Drohungserkennung mit Regex-Mustern  
 - Anpassbare Wortlisten über Textdateien
 - Sofortige Warnungen bei Regelverstößen
 
-### 🎮 **Gaming Benachrichtigungen**
+###  **Gaming Benachrichtigungen**
 - **Epic Games**: Automatische Posts bei kostenlosen Spielen (alle 30 Min)
 - **Steam**: Free Games Überwachung mit 90-Tage Cooldown (stündlich)
 - Embed-Nachrichten mit Bildern und Preisvergleichen
 - @everyone Mentions für wichtige Deals
 
-### 📺 **YouTube Integration**
+###  **YouTube Integration**
 - Channel-Überwachung für neue Videos (alle 10 Min)
 - Automatische Posts mit Video-Links
 - Konfigurierbare Channel-IDs
 
-### 🎂 **Geburtstags-System**
+###  **Geburtstags-System**
 - Geburtstage hinzufügen/verwalten (`!addgeburtstag Name TT-MM`)
 - Automatische tägliche Glückwünsche um 9:00 Uhr
 - Duplikat-Schutz und Datumsvalidierung
 - Übersichtliche Geburtstags-Checks
 
-### 👋 **Willkommens-System**
+###  **Willkommens-System**
 - Zufällige Begrüßungs-/Abschiedsnachrichten
 - Gothic-inspirierte Texte aus JSON-Dateien
 - Member Join/Leave Events
 
-### 🔄 **Hot-Reload**
+###  **Hot-Reload**
 - Automatisches Neuladen bei Code-Änderungen
 - Keine Bot-Neustarts für Updates
 - Watchdog-basierte Dateiüberwachung
 
-## 📦 Installation
+##  Installation
 
 ### Voraussetzungen
 - Python 3.8 oder höher
@@ -67,7 +67,7 @@ cp config.py config_real.py
 5. **Bot starten**
 python kaschibot.py
 
-## ⚙️ Konfiguration
+##  Konfiguration
 
 Bearbeite `.env` mit deinen Daten.
 
@@ -83,7 +83,7 @@ Bearbeite `.env` mit deinen Daten.
 6. Bot zum Server hinzufügen
 
 
-## 🎯 Commands
+##  Commands
 
 | Command | Beschreibung | Beispiel |
 |---------|--------------|----------|
