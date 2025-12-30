@@ -6,51 +6,47 @@ import logging
 from discord.ext import tasks, commands
 import config
 import asyncio
-
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 LASTGAME_PATH = "datenbank/lastEpicGames.json"
 lastgames = []
 
 # DEBUG-SCHALTER
-DEBUG = False
-
+DEBUG = True
 
 async def read_last_games():
     global lastgames
     if not os.path.exists(LASTGAME_PATH):
         with open(LASTGAME_PATH, "w") as f:
-            json.dump([], f)
+            json.dump([], f, indent=2)
         lastgames = []
         logger.info("Epic Games Datenbank erstellt")
         return
 
     try:
-        with open(LASTGAME_PATH, "r") as f:
+        with open(LASTGAME_PATH, "r", encoding="utf-8") as f:
             lastgames = json.load(f)
         logger.info(f"Epic Games Datenbank geladen: {len(lastgames)} Einträge")
     except Exception as e:
         logger.error(f"Fehler beim Laden der Epic Games Datenbank: {e}")
         lastgames = []
 
-
 async def save_last_games():
     global lastgames
     try:
-        with open(LASTGAME_PATH, "w") as f:
-            json.dump(lastgames, f, indent=2)
+        with open(LASTGAME_PATH, "w", encoding="utf-8") as f:
+            json.dump(lastgames, f, indent=2, ensure_ascii=False)
         logger.info("Epic Games Datenbank gespeichert")
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Epic Games Datenbank: {e}")
-
 
 def debug_log(message: str):
     """Hilfsfunktion für Debug-Logging"""
     if DEBUG:
         logger.debug(f"[DEBUG] {message}")
 
-
-async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt"):
+async def check_epic(bot, status_channel, force_chat_output=False, triggered_by="Unbekannt"):
     global lastgames
     
     if DEBUG:
@@ -73,7 +69,7 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                     if resp.status != 200:
                         logger.error(f"Epic API Error: {resp.status} (Ausgelöst von: {triggered_by})")
                         if force_chat_output:
-                            await channel.send("🚫 Fehler beim Abrufen der Epic Games-Daten.")
+                            await status_channel.send("🚫 Fehler beim Abrufen der Epic Games-Daten.")
                         return
                     
                     debug_log("Response-Status ist 200, versuche JSON zu parsen...")
@@ -111,12 +107,12 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
             except asyncio.TimeoutError:
                 logger.error("HTTP-Request Timeout (30 Sekunden überschritten)")
                 if force_chat_output:
-                    await channel.send("🚫 Timeout beim Abrufen der Epic Games-Daten.")
+                    await status_channel.send("🚫 Timeout beim Abrufen der Epic Games-Daten.")
                 return
             except Exception as http_error:
                 logger.error(f"HTTP-Request Fehler: {http_error}", exc_info=True)
                 if force_chat_output:
-                    await channel.send(f"🚫 Fehler beim HTTP-Request: {http_error}")
+                    await status_channel.send(f"🚫 Fehler beim HTTP-Request: {http_error}")
                 return
         
         debug_log("ClientSession geschlossen")
@@ -201,10 +197,18 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
         if not promotions:
             logger.info(f"Keine Epic Games Promotions gefunden (Ausgelöst von: {triggered_by})")
             if force_chat_output:
-                await channel.send("ℹ️ Zurzeit sind keine Gratis-Spiele im Epic Games Store verfügbar.")
+                await status_channel.send("ℹ️ Zurzeit sind keine Gratis-Spiele im Epic Games Store verfügbar.")
             return
 
         logger.info(f"Beginne Verarbeitung von {len(promotions)} Spielen...")
+
+        # Hole den Freegames-Channel - WICHTIG für alle Postings
+        freegames_channel = bot.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
+        if not freegames_channel:
+            logger.error(f"Freegames-Channel {config.FREEGAMES_DISCORD_CHANNEL_ID} nicht gefunden!")
+            if force_chat_output:
+                await status_channel.send("⚠️ Freegames-Channel nicht gefunden!")
+            return
 
         new_games_count = 0
         for idx, game in enumerate(promotions):
@@ -236,6 +240,7 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                 # **WICHTIG:** Prüfe ob es wirklich KOSTENLOS (100% Rabatt) ist!
                 is_free_game = False
                 discount_percentage = None
+                end_date = None
                 
                 for offer_idx, offer in enumerate(promotional_offers):
                     if isinstance(offer, dict):
@@ -248,10 +253,13 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                                         discount_pct = discount_setting.get("discountPercentage", 0)
                                         discount_percentage = discount_pct
                                         
+                                        # Ende-Datum der Promotion
+                                        end_date = promo.get("endDate", "Unbekannt")
+                                        
                                         # NUR 100% Rabatt = Kostenlos!
                                         if discount_pct == 0 or discount_pct == 100:
                                             is_free_game = True
-                                            debug_log(f"Spiel #{idx} ({title}): ✓ 100% Rabatt gefunden = KOSTENLOS!")
+                                            debug_log(f"Spiel #{idx} ({title}): ✓ Kostenlos erkannt! (Rabatt: {discount_pct}%)")
                                             break
                                         else:
                                             debug_log(f"Spiel #{idx} ({title}): Nur {discount_pct}% Rabatt (nicht kostenlos)")
@@ -274,19 +282,64 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                 
                 logger.info(f"✓ Neues kostenloses Spiel gefunden: {title}")
                 
+                # Bundle-/Produkt-URL-Ermittlung
                 catalogNs = game.get("catalogNs")
+                offerMappings = game.get("offerMappings", [])
                 pageSlug = ""
-                if catalogNs and isinstance(catalogNs, dict):
+                pageType = ""
+                namespace = ""
+                
+                # 1. Priorität: offerMappings
+                if offerMappings and isinstance(offerMappings, list) and len(offerMappings) > 0:
+                    first_mapping = offerMappings[0]
+                    if isinstance(first_mapping, dict):
+                        pageSlug = first_mapping.get("pageSlug", "") or pageSlug
+                        pageType = first_mapping.get("pageType", "") or pageType
+                
+                # 2. Priorität: catalogNs.mappings
+                if (not pageSlug) and catalogNs and isinstance(catalogNs, dict):
+                    namespace = catalogNs.get("namespace", "") or namespace
                     mappings = catalogNs.get("mappings")
                     if mappings and isinstance(mappings, list) and len(mappings) > 0:
                         first_mapping = mappings[0]
                         if isinstance(first_mapping, dict):
-                            pageSlug = first_mapping.get("pageSlug", "")
+                            pageSlug = first_mapping.get("pageSlug", "") or pageSlug
+                            pageType = first_mapping.get("pageType", "") or pageType
                 
+                # 3. Fallback: productSlug
                 if not pageSlug:
-                    pageSlug = game.get("productSlug", "")
+                    pageSlug = game.get("productSlug", "") or ""
                 
-                game_url = f"https://www.epicgames.com/store/de/p/{pageSlug}" if pageSlug else "https://www.epicgames.com/store/de/"
+                # Kategorien auswerten
+                categories = game.get("categories", [])
+                category_paths = [
+                    c.get("path") for c in categories
+                    if isinstance(c, dict) and isinstance(c.get("path"), str)
+                ]
+                
+                # Robust: Bundle-Erkennung
+                is_bundle = (
+                    (isinstance(pageType, str) and pageType.lower() == "bundle") or
+                    namespace == "bundles" or
+                    any(p == "bundles" or p.startswith("bundles/") for p in category_paths) or
+                    ("bundle" in pageSlug.lower() if isinstance(pageSlug, str) else False)
+                )
+                
+                debug_log(
+                    f"Spiel #{idx} ({title}): pageType='{pageType}', "
+                    f"namespace='{namespace}', pageSlug='{pageSlug}', "
+                    f"categories={category_paths}, is_bundle={is_bundle}"
+                )
+                
+                if pageSlug:
+                    if is_bundle:
+                        game_url = f"https://www.epicgames.com/store/de/bundles/{pageSlug}"
+                    else:
+                        game_url = f"https://www.epicgames.com/store/de/p/{pageSlug}"
+                else:
+                    game_url = "https://www.epicgames.com/store/de/"
+                
+                debug_log(f"Spiel #{idx} ({title}): Final URL: {game_url}")
                 
                 keyImages = game.get("keyImages", [])
                 game_image = "https://cdn2.unrealengine.com/placeholder-image.jpg"
@@ -309,23 +362,31 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
                 else:
                     original_price = "💰 **Kostenlos!**"
                 
-                embed = discord.Embed(title=f"Kostenlos bei Epic Games: {title}",
-                                      description=f"Schnapp es dir 👉 [Epicgames.com]({game_url}) 👈",
-                                      color=0xffb700)
+                embed = discord.Embed(
+                    title=f"Kostenlos bei Epic Games: {title}",
+                    description=f"Schnapp es dir 👉 [Epicgames.com]({game_url}) 👈",
+                    color=0xffb700
+                )
                 embed.set_image(url=game_image)
                 embed.add_field(name="Originalpreis", value=original_price)
                 
-                if force_chat_output:
-                    await channel.send("@everyone", embed=embed)
-                else:
-                    if hasattr(channel, 'guild') and channel.guild:
-                        post_channel = channel.guild.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
-                        if post_channel:
-                            await post_channel.send("@everyone", embed=embed)
+                # IMMER im Freegames-Channel posten
+                await freegames_channel.send("@everyone", embed=embed)
+                logger.info(f"✓ Spiel gepostet in #{freegames_channel.name}: {title}")
 
-                lastgames.append({"id": game_id})
+                # Speichere vollständige Informationen
+                lastgames.append({
+                    "id": game_id,
+                    "title": title,
+                    "url": game_url,
+                    "image": game_image,
+                    "original_price": original_price_raw,
+                    "posted_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "end_date": end_date,
+                    "discount": discount_percentage
+                })
                 new_games_count += 1
-                logger.info(f"✓ Spiel gepostet: {title}")
+                logger.info(f"✓ Spiel erkannt und gepostet: {title}")
 
             except Exception as e:
                 logger.error(f"Fehler bei Spiel #{idx}: {e}", exc_info=True)
@@ -336,11 +397,13 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
         if new_games_count == 0:
             logger.info(f"Keine neuen Epic Games gefunden (Ausgelöst von: {triggered_by})")
             if force_chat_output:
-                await channel.send("✔️ Keine neuen kostenlosen Spiele entdeckt.")
+                await status_channel.send("✔️ Keine neuen kostenlosen Spiele entdeckt.")
         else:
             logger.info(f"Epic Games Check abgeschlossen: {new_games_count} neue Spiele gefunden")
             if force_chat_output:
-                await channel.send(f"✅ Es wurden {new_games_count} neue kostenlose Spiele gepostet!")
+                await status_channel.send(
+                    f"✅ {new_games_count} neue kostenlose Spiele wurden im Freegames-Channel gepostet!"
+                )
         
         if DEBUG:
             logger.info(f"=== EPIC CHECK BEENDET ===\n")
@@ -348,8 +411,7 @@ async def check_epic(channel, force_chat_output=False, triggered_by="Unbekannt")
     except Exception as e:
         logger.error(f"KRITISCHER FEHLER: {e} (Ausgelöst von: {triggered_by})", exc_info=True)
         if force_chat_output:
-            await channel.send(f"⛔ Fehler beim Epic Games-Check: {e}")
-
+            await status_channel.send(f"⛔ Fehler beim Epic Games-Check: {e}")
 
 def setup(bot):
     asyncio.run(read_last_games())
@@ -359,15 +421,19 @@ def setup(bot):
         logger.info("Starte automatischen Epic Games Check (Task)")
         channel = bot.get_channel(config.FREEGAMES_DISCORD_CHANNEL_ID)
         if channel:
-            await check_epic(channel, force_chat_output=False, triggered_by="Auto-Task")
+            await check_epic(bot, channel, force_chat_output=False, triggered_by="Auto-Task")
         else:
             logger.error("Epic Games Channel nicht gefunden (Task)")
 
     @bot.command()
     async def epic(ctx):
         logger.info(f"Manueller Epic Games Check durch {ctx.author}")
+        
         await ctx.send("🔎 Suche nach neuen kostenlosen Spielen im Epic Games Store ...")
-        await check_epic(ctx.channel, force_chat_output=True, triggered_by=ctx.author)
+        
+        # Status-Messages gehen an den Befehl-Sender (DM oder Channel)
+        # Spiele gehen IMMER im Freegames-Channel
+        await check_epic(bot, ctx, force_chat_output=True, triggered_by=str(ctx.author))
 
     @bot.listen()
     async def on_ready():
