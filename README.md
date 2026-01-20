@@ -85,19 +85,19 @@ Bearbeite `.env` mit deinen Daten.
 
 ## Commands
 
-| Command | Beschreibung | Beispiel |
-|---------|--------------|----------|
-| `!addgeburtstag` | Geburtstag hinzufügen | `!addgeburtstag Max 15-03` |
-| `!checkgeburtstag` | Geburtstage anzeigen | `!checkgeburtstag` |
-| `!epic` | Prüft auf neue Epic Games Spiele | `!epic` |
-| `!hilfe` | Interaktiver Google-Suchlink mit Vorschau und anklickbar | `!hilfe Python Discord Bot` |
-| `!internet` | Prüft, ob eine Internetverbindung besteht (DNS-Auflösung google.com) | `!internet` |
-| `!internetping` | Ping-Befehl zu einem Host | `!internetping google.com` |
-| `!kaschibothilfe` | Zeigt alle verfügbaren Befehle an | `!kaschibothilfe` |
-| `!neuerwürfel` | Löscht deine gespeicherte Würfelauswahl | `!neuerwürfel` |
-| `!showposted` | Listet alle bereits geposteten YouTube Videos auf | `!showposted` |
-| `!steamfree` | Prüft auf neue kostenlose Steam Spiele | `!steamfree` |
-| `!würfel` | Würfelt mit dem zuletzt gewählten Würfel (Cooldown 1h) | `!würfel` |
-| `!youtube` | Prüft auf neue Videos auf deinen Kanal | `!youtube` |
+| Command | Beschreibung |
+|---------|--------------|
+| `!addgeburtstag` | Geburtstag hinzufügen |
+| `!checkgeburtstag` | Geburtstage anzeigen |
+| `!epic` | Prüft auf neue Epic Games Spiele |
+| `!hilfe` | Interaktiver Google-Suchlink mit Vorschau und anklickbar |
+| `!internet` | Prüft, ob eine Internetverbindung besteht (DNS-Auflösung google.com) |
+| `!internetping` | Ping-Befehl zu einem Host |
+| `!kaschibothilfe` | Zeigt alle verfügbaren Befehle an |
+| `!neuerwürfel` | Löscht deine gespeicherte Würfelauswahl |
+| `!showposted` | Listet alle bereits geposteten YouTube Videos auf |
+| `!steamfree` | Prüft auf neue kostenlose Steam Spiele |
+| `!würfel` | Würfelt mit dem zuletzt gewählten Würfel (Cooldown 1h) |
+| `!youtube` | Prüft auf neue Videos auf deinen Kanal |
 
 
