@@ -55,6 +55,7 @@ def setup(bot):
 
     @bot.command()
     async def addgeburtstag(ctx, name: str = None, date: str = None):
+        """Geburtstag hinzufügen"""
         if name is None or date is None:
             embed = discord.Embed(
                 title="❌ Fehlende Parameter",
@@ -123,6 +124,7 @@ def setup(bot):
 
     @bot.command()
     async def checkgeburtstag(ctx):
+        """Geburtstage anzeigen"""
         heute = datetime.utcnow()
         logger.info(f"Geburtstags-Check angefordert von {ctx.author}")
 
