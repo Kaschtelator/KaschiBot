@@ -105,6 +105,7 @@ def setup(bot: commands.Bot):
 
     @bot.command()
     async def youtube(ctx: commands.Context):
+        """Prüft auf neue YouTube Videos"""
         logger.info(f"Manueller YouTube Check von {ctx.author}")
 
         # Verifiziere vor dem Check
@@ -122,6 +123,7 @@ def setup(bot: commands.Bot):
 
     @bot.command(name="showposted")
     async def show_posted(ctx: commands.Context):
+        """Listet alle bereits geposteten YouTube Videos auf"""
         if not lastvids:
             await ctx.send("Keine Videos in der Datenbank.")
             return
