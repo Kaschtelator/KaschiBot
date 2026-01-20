@@ -7,9 +7,16 @@ from datetime import datetime, time
 import config
 import asyncio
 
+
 logger = logging.getLogger(__name__)
 BDAY_PATH = "datenbank/birthdays.json"
 birthdays = []
+
+
+def get_verb_form(count):
+    """Gibt das richtige Verb zurück: 'hat' oder 'haben'"""
+    return "hat" if count == 1 else "haben"
+
 
 async def read_birthday_data():
     global birthdays
@@ -20,6 +27,7 @@ async def read_birthday_data():
         logger.info("Geburtstags-Datenbank erstellt")
         return
 
+
     try:
         with open(BDAY_PATH, "r", encoding="utf-8") as f:
             birthdays = json.load(f)
@@ -27,6 +35,7 @@ async def read_birthday_data():
     except Exception as e:
         logger.error(f"Fehler beim Laden der Geburtstags-Datenbank: {e}")
         birthdays = []
+
 
 async def save_birthday_data():
     global birthdays
@@ -39,8 +48,10 @@ async def save_birthday_data():
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Geburtstags-Datenbank: {e}")
 
+
 def setup(bot):
     asyncio.run(read_birthday_data())
+
 
     @bot.command()
     async def addgeburtstag(ctx, name: str = None, date: str = None):
@@ -55,6 +66,7 @@ def setup(bot):
             await ctx.send(embed=embed)
             logger.info(f"Geburtstag-Command falsch verwendet von {ctx.author}")
             return
+
 
         try:
             datetime.strptime(date, "%d-%m")
@@ -73,7 +85,9 @@ def setup(bot):
             logger.warning(f"Ungültiges Datum '{date}' von {ctx.author}")
             return
 
+
         global birthdays
+
 
         for existing in birthdays:
             if existing["name"].lower() == name.lower():
@@ -86,14 +100,17 @@ def setup(bot):
                 logger.info(f"Geburtstag für {name} bereits vorhanden")
                 return
 
+
         jahr = datetime.utcnow().year - 1
         birthdays.append({"name": name, "date": date, "jahr": jahr})
+
 
         try:
             await save_birthday_data()
         except Exception:
             await ctx.send("Fehler beim Speichern der Geburtstags-Daten.")
             return
+
 
         embed = discord.Embed(
             title="✅ Geburtstag hinzugefügt",
@@ -103,10 +120,12 @@ def setup(bot):
         embed.add_field(name="🎂", value="Dankeschön!", inline=False)
         await ctx.send(embed=embed)
 
+
     @bot.command()
     async def checkgeburtstag(ctx):
         heute = datetime.utcnow()
         logger.info(f"Geburtstags-Check angefordert von {ctx.author}")
+
 
         global birthdays
         if not birthdays:
@@ -123,8 +142,10 @@ def setup(bot):
             await ctx.send(embed=embed)
             return
 
+
         heute_tagmon = (heute.day, heute.month)
         geburtstage_heute = [g for g in birthdays if tuple(map(int, g["date"].split("-"))) == heute_tagmon]
+
 
         def next_birthday_date(g):
             tag, monat = map(int, g["date"].split("-"))
@@ -134,17 +155,21 @@ def setup(bot):
                 geb_datum = datetime(jahr + 1, monat, tag)
             return geb_datum
 
+
         birthdays_sorted = sorted(birthdays, key=next_birthday_date)
+
 
         embed = discord.Embed(
             title="🎉 Geburtstags-Übersicht",
             color=0xff69b4
         )
 
+
         if geburtstage_heute:
             names = ', '.join(g['name'] for g in geburtstage_heute)
+            verb = get_verb_form(len(geburtstage_heute))
             embed.add_field(
-                name="🎂 Heute haben Geburtstag:",
+                name=f"🎂 Heute {verb} Geburtstag:",
                 value=f"**{names}**",
                 inline=False
             )
@@ -156,10 +181,12 @@ def setup(bot):
                 inline=False
             )
 
+
         if birthdays_sorted:
             next_birthday = birthdays_sorted[0]
             next_birthday_date_obj = next_birthday_date(next_birthday)
             diff = (next_birthday_date_obj - heute).days
+
 
             if diff == 0 and not geburtstage_heute:
                 embed.add_field(
@@ -174,7 +201,9 @@ def setup(bot):
                     inline=False
                 )
 
+
         await ctx.send(embed=embed)
+
 
     @tasks.loop(time=time(hour=9, minute=0))
     async def daily_birthday_check():
@@ -184,19 +213,23 @@ def setup(bot):
             logger.error("Geburtstags-Channel nicht gefunden")
             return
 
+
         heute = datetime.utcnow()
         if not birthdays:
             logger.info("Keine Geburtstage eingetragen, Check übersprungen")
             return
 
+
         heute_tagmon = (heute.day, heute.month)
         geburtstage_heute = [g for g in birthdays if tuple(map(int, g["date"].split("-"))) == heute_tagmon]
 
+
         if geburtstage_heute:
             names = ', '.join(g['name'] for g in geburtstage_heute)
+            verb = get_verb_form(len(geburtstage_heute))
             embed = discord.Embed(
                 title="🎉 Herzlichen Glückwunsch! 🎉",
-                description=f"Heute haben Geburtstag: **{names}**",
+                description=f"Heute {verb} Geburtstag: **{names}**",
                 color=0xff69b4
             )
             embed.add_field(name="🎂", value="Alles Gute zum Geburtstag!", inline=False)
@@ -204,6 +237,7 @@ def setup(bot):
             logger.info(f"Geburtstags-Nachricht gepostet für: {names}")
         else:
             logger.info("Keine Geburtstage heute")
+
 
     @bot.listen()
     async def on_ready():
