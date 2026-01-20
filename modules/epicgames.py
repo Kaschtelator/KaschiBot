@@ -427,6 +427,7 @@ def setup(bot):
 
     @bot.command()
     async def epic(ctx):
+        """Prüft auf neue Epic Games Spiele"""
         logger.info(f"Manueller Epic Games Check durch {ctx.author}")
         
         await ctx.send("🔎 Suche nach neuen kostenlosen Spielen im Epic Games Store ...")
