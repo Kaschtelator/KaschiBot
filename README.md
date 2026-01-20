@@ -83,13 +83,21 @@ Bearbeite `.env` mit deinen Daten.
 6. Bot zum Server hinzufügen
 
 
-##  Commands
+## Commands
 
 | Command | Beschreibung | Beispiel |
 |---------|--------------|----------|
 | `!addgeburtstag` | Geburtstag hinzufügen | `!addgeburtstag Max 15-03` |
 | `!checkgeburtstag` | Geburtstage anzeigen | `!checkgeburtstag` |
-| `!youtube` | Manueller YouTube Check | `!youtube` |
-| `!epic` | Manueller Epic Games Check | `!epic` |
-| `!steamfree` | Manueller Steam Check | `!steamfree` |
+| `!epic` | Prüft auf neue Epic Games Spiele | `!epic` |
+| `!hilfe` | Interaktiver Google-Suchlink mit Vorschau und anklickbar | `!hilfe Python Discord Bot` |
+| `!internet` | Prüft, ob eine Internetverbindung besteht (DNS-Auflösung google.com) | `!internet` |
+| `!internetping` | Ping-Befehl zu einem Host | `!internetping google.com` |
+| `!kaschibothilfe` | Zeigt alle verfügbaren Befehle an | `!kaschibothilfe` |
+| `!neuerwürfel` | Löscht deine gespeicherte Würfelauswahl | `!neuerwürfel` |
+| `!showposted` | Listet alle bereits geposteten YouTube Videos auf | `!showposted` |
+| `!steamfree` | Prüft auf neue kostenlose Steam Spiele | `!steamfree` |
+| `!würfel` | Würfelt mit dem zuletzt gewählten Würfel (Cooldown 1h) | `!würfel` |
+| `!youtube` | Prüft auf neue Videos auf deinen Kanal | `!youtube` |
+
 
