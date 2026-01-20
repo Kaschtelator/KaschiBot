@@ -168,7 +168,7 @@ async def check_steam_free_games(bot, force_chat_output=False, context_channel=N
 
 
 def setup(bot):
-    asyncio.run(read_last_games())  # robustes synchrones Laden vor Task
+    asyncio.run(read_last_games()) 
 
 
     @tasks.loop(hours=1)
@@ -179,6 +179,7 @@ def setup(bot):
 
     @bot.command()
     async def steamfree(ctx):
+        """Prüft auf neue kostenlose Steam Spiele"""
         logger.info(f"Manueller Steam Check von {ctx.author}")
         try:
             await check_steam_free_games(bot, force_chat_output=True, context_channel=ctx.channel, triggered_by=ctx.author)
