@@ -3,6 +3,7 @@ import discord
 import logging
 logger = logging.getLogger(__name__)
 
+
 def split_text(text, max_length=1024):
     """Teilt einen langen Text in mehrere Strings auf, die maximal max_length lang sind."""
     lines = text.split('\n')
@@ -18,13 +19,14 @@ def split_text(text, max_length=1024):
         chunks.append(current_chunk)
     return chunks
 
+
 def setup(bot: commands.Bot):
+
 
     @bot.command(name="kaschibothilfe")
     async def kaschibothilfe(ctx: commands.Context):
-        print(f"'kaschibothilfe' Command aufgerufen von {ctx.author} ({ctx.message.id})")
-
         """Zeigt alle verfügbaren Commands in einem Embed an."""
+        print(f"'kaschibothilfe' Command aufgerufen von {ctx.author} ({ctx.message.id})")
 
         embed = discord.Embed(title="Befehlsübersicht", color=0x00ff00)
         cogs = {}
@@ -32,7 +34,7 @@ def setup(bot: commands.Bot):
         for cmd in bot.commands:
             if cmd.hidden or not cmd.enabled:
                 continue
-            cog_name = cmd.cog_name if cmd.cog_name else "Keine Kategorie"
+            cog_name = cmd.cog_name if cmd.cog_name else "Allgemein"
             if cog_name not in cogs:
                 cogs[cog_name] = []
             cogs[cog_name].append(cmd)
