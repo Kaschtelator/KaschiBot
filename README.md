@@ -17,6 +17,7 @@ Ein umfassender Discord Bot für Community-Management mit automatischen Benachri
 ###  **Gaming Benachrichtigungen**
 - **Epic Games**: Automatische Posts bei kostenlosen Spielen (alle 30 Min)
 - **Steam**: Free Games Überwachung mit 90-Tage Cooldown (stündlich)
+- **GOG**: Free Games Überwachung (stündlich)
 - Embed-Nachrichten mit Bildern und Preisvergleichen
 - @everyone Mentions für wichtige Deals
 
@@ -90,6 +91,7 @@ Bearbeite `.env` mit deinen Daten.
 | `!addgeburtstag` | Geburtstag hinzufügen |
 | `!checkgeburtstag` | Geburtstage anzeigen |
 | `!epic` | Prüft auf neue Epic Games Spiele |
+| `!gogfree` | Prüft auf neue GOG Spiele |
 | `!hilfe` | Interaktiver Google-Suchlink mit Vorschau und anklickbar |
 | `!internet` | Prüft, ob eine Internetverbindung besteht (DNS-Auflösung google.com) |
 | `!internetping` | Ping-Befehl zu einem Host |
